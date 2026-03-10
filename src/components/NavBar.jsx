@@ -1,18 +1,13 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from "react-oidc-context";
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Navbar() {
-  const auth = useAuth();
+  const navigate = useNavigate();
 
   const signOutRedirect = () => {
-    auth.removeUser();
-    // Ajuste: redireciona para Cognito logout
-    const clientId = "hlqnolj6dutpmbehp9t6g7n0u"; // seu clientId Cognito
-    const logoutUri = "http://localhost:5173/";
-    const cognitoDomain = "https://sa-east-1nsvfmql51.auth.sa-east-1.amazoncognito.com";
-    const logoutUrl = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
-    window.location.href = logoutUrl;
+    localStorage.removeItem('loginResponse');
+    localStorage.removeItem('authToken');
+    navigate('/login');
   };
 
   return (

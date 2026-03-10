@@ -5,6 +5,26 @@ import axios from 'axios';
 export default function FileUploader({ userEmail }) {
   const [files, setFiles] = useState([]);
 
+  const getAuthToken = () => {
+    const directToken = localStorage.getItem('authToken');
+    if (directToken) return directToken;
+
+    try {
+      const loginRaw = localStorage.getItem('loginResponse');
+      if (!loginRaw) return null;
+      const loginData = JSON.parse(loginRaw);
+      return loginData?.token || loginData?.accessToken || loginData?.jwt || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getAuthHeaders = () => {
+    const token = getAuthToken();
+    if (!token) throw new Error('Sessão expirada. Faça login novamente.');
+    return { Authorization: `Bearer ${token}` };
+  };
+
   const onDrop = (acceptedFiles) => {
     const newFiles = acceptedFiles.map(file => ({
       file,
@@ -18,24 +38,40 @@ export default function FileUploader({ userEmail }) {
   };
 
   const getPresignedUrl = async (file) => {
-    // Altere para seu endpoint de upload
-    const response = await axios.post(
-      'https://SEU_ENDPOINT_UPLOAD', // <-- coloque aqui sua URL de upload
-      {
-        fileName: file.name,
-        fileType: file.type,
-      }
-    );
-    return response.data.signedUrl;
+    const response = await axios.get('/api/videos/upload-url', {
+      params: { fileName: file.name },
+      headers: getAuthHeaders(),
+    });
+
+    return response?.data?.url || response?.data?.signedUrl;
   };
 
-  const getDownloadUrl = async (fileName) => {
-    // Altere para seu endpoint de download
+  const registerVideo = async (fileName, presignedUrl) => {
+    const rawS3Path = (presignedUrl || '').split('?')[0];
+
     const response = await axios.post(
-      'https://EXEMPLO_ENDPOINT_DOWNLOAD', // <-- coloque aqui sua URL de download
-      { fileName }
+      '/api/videos',
+      {
+        fileName,
+        rawS3Path,
+      },
+      {
+        headers: getAuthHeaders(),
+      }
     );
-    return response.data.signedUrl;
+
+    return response?.data;
+  };
+
+  const getDownloadUrl = async (createdVideo) => {
+    const videoId = createdVideo?.id || createdVideo?.videoId;
+    if (!videoId) return null;
+
+    const response = await axios.get(`/api/videos/${videoId}/download`, {
+      headers: getAuthHeaders(),
+    });
+
+    return response?.data?.url || response?.data?.signedUrl || null;
   };
 
   const uploadFile = async (fileObj, index) => {
@@ -48,6 +84,9 @@ export default function FileUploader({ userEmail }) {
       });
 
       const presignedUrl = await getPresignedUrl(fileObj.file);
+      if (!presignedUrl) {
+        throw new Error('API não retornou URL pré-assinada para upload.');
+      }
 
       await axios.put(presignedUrl, fileObj.file, {
         headers: {
@@ -63,8 +102,8 @@ export default function FileUploader({ userEmail }) {
         }
       });
 
-      // Após upload, gera URL de download
-      const downloadUrl = await getDownloadUrl(fileObj.file.name);
+      const createdVideo = await registerVideo(fileObj.file.name, presignedUrl);
+      const downloadUrl = await getDownloadUrl(createdVideo);
 
       setFiles(prev => {
         const copy = [...prev];
@@ -76,10 +115,15 @@ export default function FileUploader({ userEmail }) {
       });
 
     } catch (error) {
+      const apiErrorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.title ||
+        (typeof error?.response?.data === 'string' ? error.response.data : null);
+
       setFiles(prev => {
         const copy = [...prev];
         copy[index].status = 'Erro';
-        copy[index].error = error?.message || 'Erro desconhecido';
+        copy[index].error = apiErrorMessage || error?.message || 'Erro desconhecido';
         return copy;
       });
     }

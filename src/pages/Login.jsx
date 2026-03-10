@@ -1,33 +1,93 @@
-import { CognitoUser, AuthenticationDetails, CognitoUserPool } from 'amazon-cognito-identity-js';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-const poolData = {
-  UserPoolId: 'us-east-1_Qx3kOUgAl',
-  ClientId: '50cjfpgec6f7npdrdigrspaaiv',
-};
-const userPool = new CognitoUserPool(poolData);
+import axios from 'axios';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    const user = new CognitoUser({ Username: email, Pool: userPool });
-    const authDetails = new AuthenticationDetails({ Username: email, Password: password });
+  const extractApiMessage = (data) => {
+    if (!data) return '';
 
-    user.authenticateUser(authDetails, {
-      onSuccess: (result) => {
-        setMsg('Login realizado!');
-        setTimeout(() => {
-          navigate('/'); // Redireciona para a home ou dashboard
-        }, 1000);
-      },
-      onFailure: (err) => setMsg(err.message),
-    });
+    if (typeof data === 'string') {
+      return data.replace(/^"|"$/g, '').trim();
+    }
+
+    if (data?.message) return data.message;
+    if (data?.title) return data.title;
+    if (data?.detail) return data.detail;
+
+    if (data?.errors) {
+      const flatErrors = Object.values(data.errors).flat().filter(Boolean);
+      if (flatErrors.length) return flatErrors.join(' | ');
+    }
+
+    return '';
+  };
+
+  const getLoginErrorMessage = (err) => {
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+
+    const apiMessage = extractApiMessage(data);
+    if (apiMessage) return apiMessage;
+
+    if (status === 401) return 'Credenciais inválidas.';
+    if (status === 403) return 'Usuário sem permissão para acessar.';
+    if (status === 500) return 'Erro interno da API. Tente novamente.';
+
+    if (err?.message === 'Network Error') {
+      return 'Não foi possível conectar à API.';
+    }
+
+    return 'Não foi possível entrar. Verifique e-mail e senha.';
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setMsg('');
+    localStorage.removeItem('loginResponse');
+    localStorage.removeItem('authToken');
+
+    try {
+      const response = await axios.post('/auth/login', {
+        email,
+        password,
+      });
+
+      const apiMessage = extractApiMessage(response?.data);
+      const token = response?.data?.token || response?.data?.accessToken || response?.data?.jwt;
+      const isSuccessFlag = response?.data?.success === true;
+
+      if (!token && !isSuccessFlag) {
+        setMsg(apiMessage || 'Não foi possível entrar. Verifique suas credenciais.');
+        return;
+      }
+
+      if (apiMessage && /(inválid|inválid|inval|invalid|credenciais?|não autorizado|nao autorizado|usuário inválido|usuario invalido)/i.test(apiMessage)) {
+        setMsg(apiMessage);
+        return;
+      }
+
+      if (token) {
+        localStorage.setItem('authToken', token);
+      }
+
+      if (response?.data) {
+        localStorage.setItem('loginResponse', JSON.stringify(response.data));
+      }
+
+      setMsg('Login realizado com sucesso!');
+      navigate('/home');
+    } catch (err) {
+      setMsg(getLoginErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -56,15 +116,17 @@ export default function Login() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-primary btn-lg w-100 py-3">Entrar</button>
-            <div className="mt-3 text-center text-danger">{msg}</div>
+            <button type="submit" className="btn btn-primary btn-lg w-100 py-3" disabled={isSubmitting}>
+              {isSubmitting ? 'Entrando...' : 'Entrar'}
+            </button>
+            {msg && (
+              <div className="mt-3 alert alert-danger text-center fw-semibold" role="alert">
+                {msg}
+              </div>
+            )}
             <div className="mt-4 text-center">
               <span>Não tem conta? </span>
               <Link to="/register">Cadastre-se</Link>
-            </div>
-            <div className="mt-4 text-center">
-              <span>Não confirmou o cadastro? </span>
-              <Link to="/confirm">Confirmar cadastro</Link>
             </div>
           </form>
         </div>

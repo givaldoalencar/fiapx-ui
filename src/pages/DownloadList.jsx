@@ -6,12 +6,38 @@ export default function DownloadList() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const getAuthToken = () => {
+    const directToken = localStorage.getItem('authToken');
+    if (directToken) return directToken;
+
+    try {
+      const loginRaw = localStorage.getItem('loginResponse');
+      if (!loginRaw) return null;
+      const loginData = JSON.parse(loginRaw);
+      return loginData?.token || loginData?.accessToken || loginData?.jwt || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getAuthHeaders = () => {
+    const token = getAuthToken();
+    if (!token) throw new Error('Sessão expirada. Faça login novamente.');
+    return { Authorization: `Bearer ${token}` };
+  };
+
   const fetchFiles = () => {
     setLoading(true);
-    // Altere para seu endpoint que lista arquivos do S3
-    axios.get('https://EXEMPLO_ENDPOINT_LISTAR_ARQUIVOS')
+    axios.get('/api/videos/me', { headers: getAuthHeaders() })
       .then(res => {
-        setFiles(res.data.files); // Espera um array de nomes de arquivos
+        const data = res?.data;
+        const normalized = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.videos)
+            ? data.videos
+            : [];
+
+        setFiles(normalized);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -21,10 +47,16 @@ export default function DownloadList() {
     fetchFiles();
   }, []);
 
-  const handleDownload = async (fileName) => {
-    // Altere para seu endpoint que gera URL pré-assinada de download
-    const res = await axios.post('https://EXEMPLO_ENDPOINT_DOWNLOAD', { fileName });
-    window.open(res.data.signedUrl, '_blank');
+  const handleDownload = async (video) => {
+    const videoId = video?.id || video?.videoId;
+    if (!videoId) return;
+
+    const res = await axios.get(`/api/videos/${videoId}/download`, {
+      headers: getAuthHeaders(),
+    });
+
+    const url = res?.data?.url || res?.data?.signedUrl;
+    if (url) window.open(url, '_blank');
   };
 
   return (
@@ -55,13 +87,13 @@ export default function DownloadList() {
             </tr>
           </thead>
           <tbody>
-            {files.map((name, idx) => (
-              <tr key={idx}>
-                <td>{name}</td>
+            {files.map((video, idx) => (
+              <tr key={video?.id || video?.videoId || idx}>
+                <td>{video?.fileName || video?.name || `Vídeo ${idx + 1}`}</td>
                 <td>
                   <button
                     className="btn btn-outline-primary btn-sm"
-                    onClick={() => handleDownload(name)}
+                    onClick={() => handleDownload(video)}
                   >
                     Download
                   </button>
