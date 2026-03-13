@@ -14,7 +14,7 @@ export default function DownloadList() {
       const loginRaw = localStorage.getItem('loginResponse');
       if (!loginRaw) return null;
       const loginData = JSON.parse(loginRaw);
-      return loginData?.token || loginData?.accessToken || loginData?.jwt || null;
+      return loginData?.token || loginData?.idToken || loginData?.jwt || null;
     } catch {
       return null;
     }

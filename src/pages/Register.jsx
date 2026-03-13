@@ -8,6 +8,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -16,7 +17,7 @@ export default function Register() {
     setMsg('');
 
     try {
-      await axios.post('/api/User/CreateUser', {
+      await axios.post(`${apiBaseUrl}/api/User/CreateUser`, {
         name,
         email,
         password,

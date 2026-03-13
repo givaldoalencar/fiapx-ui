@@ -4,6 +4,8 @@ import axios from 'axios';
 
 export default function FileUploader({ userEmail }) {
   const [files, setFiles] = useState([]);
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
 
   const getAuthToken = () => {
     const directToken = localStorage.getItem('authToken');
@@ -13,7 +15,7 @@ export default function FileUploader({ userEmail }) {
       const loginRaw = localStorage.getItem('loginResponse');
       if (!loginRaw) return null;
       const loginData = JSON.parse(loginRaw);
-      return loginData?.token || loginData?.accessToken || loginData?.jwt || null;
+      return loginData?.token || loginData?.idToken || loginData?.jwt || null;
     } catch {
       return null;
     }
@@ -38,7 +40,7 @@ export default function FileUploader({ userEmail }) {
   };
 
   const getPresignedUrl = async (file) => {
-    const response = await axios.get('/api/videos/upload-url', {
+    const response = await axios.get(`${apiBaseUrl}/api/videos/upload-url`, {
       params: { fileName: file.name },
       headers: getAuthHeaders(),
     });
@@ -67,7 +69,7 @@ export default function FileUploader({ userEmail }) {
     const videoId = createdVideo?.id || createdVideo?.videoId;
     if (!videoId) return null;
 
-    const response = await axios.get(`/api/videos/${videoId}/download`, {
+    const response = await axios.get(`${apiBaseUrl}/api/videos/${videoId}/download`, {
       headers: getAuthHeaders(),
     });
 

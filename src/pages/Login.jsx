@@ -8,6 +8,7 @@ export default function Login() {
   const [msg, setMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   const extractApiMessage = (data) => {
     if (!data) return '';
@@ -54,13 +55,13 @@ export default function Login() {
     localStorage.removeItem('authToken');
 
     try {
-      const response = await axios.post('/auth/login', {
+      const response = await axios.post(`${apiBaseUrl}/auth/login`, {
         email,
         password,
       });
 
       const apiMessage = extractApiMessage(response?.data);
-      const token = response?.data?.token || response?.data?.accessToken || response?.data?.jwt;
+      const token = response?.data?.token || response?.data?.idToken || response?.data?.jwt;
       const isSuccessFlag = response?.data?.success === true;
 
       if (!token && !isSuccessFlag) {
