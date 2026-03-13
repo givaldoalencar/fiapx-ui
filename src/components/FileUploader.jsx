@@ -41,7 +41,7 @@ export default function FileUploader({ userEmail }) {
 
   const getPresignedUrl = async (file) => {
     const response = await axios.get(`${apiBaseUrl}/api/videos/upload-url`, {
-      params: { fileName: file.name },
+      params: { fileName: `${file.name}` },
       headers: getAuthHeaders(),
     });
 
@@ -51,8 +51,7 @@ export default function FileUploader({ userEmail }) {
   const registerVideo = async (fileName, presignedUrl) => {
     const rawS3Path = (presignedUrl || '').split('?')[0];
 
-    const response = await axios.post(
-      '/api/videos',
+    const response = await axios.post(`${apiBaseUrl}/api/videos`,
       {
         fileName,
         rawS3Path,
@@ -104,8 +103,7 @@ export default function FileUploader({ userEmail }) {
         }
       });
 
-      const createdVideo = await registerVideo(fileObj.file.name, presignedUrl);
-      const downloadUrl = await getDownloadUrl(createdVideo);
+      const downloadUrl = await getDownloadUrl(fileObj.file.fileName);
 
       setFiles(prev => {
         const copy = [...prev];

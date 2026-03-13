@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 export default function DownloadList() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
   const getAuthToken = () => {
     const directToken = localStorage.getItem('authToken');
@@ -28,7 +29,7 @@ export default function DownloadList() {
 
   const fetchFiles = () => {
     setLoading(true);
-    axios.get('/api/videos/me', { headers: getAuthHeaders() })
+    axios.get(`${apiBaseUrl}/api/videos/me`, { headers: getAuthHeaders() })
       .then(res => {
         const data = res?.data;
         const normalized = Array.isArray(data)
@@ -51,7 +52,7 @@ export default function DownloadList() {
     const videoId = video?.id || video?.videoId;
     if (!videoId) return;
 
-    const res = await axios.get(`/api/videos/${videoId}/download`, {
+    const res = await axios.get(`${apiBaseUrl}/api/videos/${videoId}/download`, {
       headers: getAuthHeaders(),
     });
 
@@ -61,42 +62,49 @@ export default function DownloadList() {
 
   return (
     <div className="container mt-5">
-      <div className="mb-4">
-        <Link to="/" className="btn btn-outline-secondary">
-          Voltar para Upload
-        </Link>
+      
+      <div className="d-flex align-items-center mb-4">
+        <h2 className="mb-0 me-3">Meus Vídeos</h2>
+        <button className="btn btn-outline-secondary btn-sm" onClick={fetchFiles} title="Atualizar lista">
+          <i className="bi bi-arrow-clockwise"></i>
+        </button>
       </div>
-      <h2 className="mb-4">Arquivos disponíveis para download</h2>
       {loading ? (
         <div>Carregando arquivos...</div>
       ) : files.length === 0 ? (
         <>
           <div>Nenhum arquivo disponível.</div>
-          <div className="mt-3">
+          {/* <div className="mt-3">
             <button className="btn btn-outline-primary" onClick={fetchFiles}>
               Buscar arquivos
             </button>
-          </div>
+          </div> */}
         </>
       ) : (
         <table className="table table-bordered table-striped">
           <thead className="table-primary">
             <tr>
               <th>Nome</th>
-              <th>Download</th>
+              <th>Criado em</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {files.map((video, idx) => (
               <tr key={video?.id || video?.videoId || idx}>
                 <td>{video?.fileName || video?.name || `Vídeo ${idx + 1}`}</td>
+                <td>{video?.createdAt ? new Date(video.createdAt).toLocaleString() : 'N/A'}</td>
                 <td>
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => handleDownload(video)}
-                  >
-                    Download
-                  </button>
+                  {video?.status === "Completed" ? (
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleDownload(video)}
+                    >
+                      Download
+                    </button>
+                  ) : (
+                    video?.status || 'Processando'
+                  )}
                 </td>
               </tr>
             ))}
