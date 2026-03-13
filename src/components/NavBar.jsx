@@ -14,8 +14,13 @@ export default function Navbar() {
     <nav className="navbar navbar-expand-lg navbar-light bg-light px-4">
       <div className="container-fluid">
         <div className="d-flex align-items-center ms-auto">
+          
+        <Link to="/home" className="btn btn-outline-primary me-3">
+          Carregar novo vídeo
+        </Link>
+      
           <Link to="/downloads" className="btn btn-outline-primary me-3">
-            Downloads
+            Meus vídeos
           </Link>
           <button className="btn btn-danger" onClick={signOutRedirect}>
             Sair
